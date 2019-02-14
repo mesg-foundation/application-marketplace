@@ -1,0 +1,56 @@
+#!/bin/bash -e
+
+bash <(curl -fsSL https://mesg.com/install)
+
+# wait core to be ready
+sleep 10
+
+# run marketplace service
+cd /tmp
+git clone https://github.com/mesg-foundation/core
+cd core
+git fetch origin ss/marketplace
+git checkout ss/marketplace
+cd systemservices/marketplace
+mesg-core service deploy
+mesg-core service start marketplace
+
+# run http-server service
+mesg-core service deploy https://github.com/ilgooz/service-http-server
+mesg-core service start http-server
+
+# create an attachable network
+docker network create --driver overlay --attachable marketplace
+
+# run nginx proxy for ssl in marketplace's network
+docker run --detach \
+  --network marketplace  \
+  --name nginx-proxy \
+  --publish 80:80 \
+  --publish 443:443 \
+  --volume /etc/nginx/certs \
+  --volume /etc/nginx/vhost.d \
+  --volume /usr/share/nginx/html \
+  --volume /var/run/docker.sock:/tmp/docker.sock:ro \
+  jwilder/nginx-proxy
+
+# configure letsencrypt to auto create certs for nginx proxy
+docker run --detach \
+  --name nginx-proxy-letsencrypt \
+  --volumes-from nginx-proxy \
+  --volume /var/run/docker.sock:/var/run/docker.sock:ro \
+  jrcs/letsencrypt-nginx-proxy-companion
+
+docker build -t marketplace .
+docker service create --name marketplace \
+  --network core \
+  marketplace
+
+# following needs to be added to htt-server service:
+# docker service update --network-add marketplace ID
+# docker service update \
+#   --env-add "VIRTUAL_HOST=core.marketplace.mesg.com" \
+#   --env-add "VIRTUAL_PORT=2300" \
+#   --env-add "LETSENCRYPT_HOST=core.marketplace.mesg.com" \
+#   --env-add "LETSENCRYPT_EMAIL=info@mesg.com"  \
+#   ID
