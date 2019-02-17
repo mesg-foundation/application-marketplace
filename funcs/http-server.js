@@ -13,3 +13,11 @@ exports.response = async (mesg, data) => {
     inputData: JSON.stringify(data)
   })
 }
+
+exports.cacheResponse = async (mesg, data) => {
+  return await mesg.executeTaskAndWaitResult({
+    serviceID: 'http-server',
+    taskKey: 'cache',
+    inputData: JSON.stringify(data)
+  })
+}

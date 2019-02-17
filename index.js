@@ -3,21 +3,35 @@ const mesg = require('mesg-js').application({ endpoint })
 const debug = require('debug')('marketplace')
 const error = require('debug')('marketplace:error')
 const { list } = require('./funcs/marketplace')
-const { listenRequests, response } = require('./funcs/http-server')
+const {
+  listenRequests,
+  response,
+  cacheResponse,
+} = require('./funcs/http-server')
 
-const listServicesEndpoint = '/services'
+// cacheServicesResponse caches response for /services JSON API.
+async function cacheServicesResponse() {
+  debug('caching response for services...')
+  await cacheResponse(mesg, {
+    method: 'get',
+    path: '/services',
+    code: 200,
+    mimeType: 'application/json',
+    content: JSON.stringify(await list(mesg))
+  })
+  debug('response cached for services')
+}
 
-// serve JSON APIs.
+cacheServicesResponse()
+setInterval(cacheServicesResponse, 60 * 1000 * 2)
+
+// serve 404 for * JSON API.
 listenRequests(mesg)
   .on('data', async (event) => {
     const data = JSON.parse(event.eventData)
-    const method = data.method
-    const path = data.path
-    const body = data.body ? JSON.parse(data.body) : {}
     const sessionID = data.sessionID
-
     try {
-      await handleRequest({ sessionID, method, path, body })
+      await response(mesg, { sessionID, code: 404 })
     } catch(err) {
       error('error while responding api request:', err)
     }
@@ -26,24 +40,3 @@ listenRequests(mesg)
     error('error while listening api requests:', err)
     process.exit(1)
   })
-
-async function handleRequest({ sessionID, method, path, body }) {
-  if (method !== 'GET') {
-    await response(mesg, { sessionID, code: 404 })
-    return
-  }
-
-  switch (path) {
-    case listServicesEndpoint:
-      debug(`requested ${listServicesEndpoint}: ${sessionID}`)
-      await response(mesg, {
-        sessionID,
-        mimeType: 'application/json',
-        content: JSON.stringify(await list(mesg))
-      })
-      debug(`completed ${listServicesEndpoint}: ${sessionID}`)
-      return
-  }
-
-  await response(mesg, { sessionID, code: 404 })
-}
