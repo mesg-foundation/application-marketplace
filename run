@@ -49,8 +49,8 @@ docker service create --name marketplace \
 # following needs to be added to htt-server service:
 # docker service update --network-add marketplace ID
 # docker service update \
-#   --env-add "VIRTUAL_HOST=core.marketplace.mesg.com" \
+#   --env-add "VIRTUAL_HOST=application-marketplace.mesg.com" \
 #   --env-add "VIRTUAL_PORT=2300" \
-#   --env-add "LETSENCRYPT_HOST=core.marketplace.mesg.com" \
+#   --env-add "LETSENCRYPT_HOST=application-marketplace.mesg.com" \
 #   --env-add "LETSENCRYPT_EMAIL=info@mesg.com"  \
 #   ID
