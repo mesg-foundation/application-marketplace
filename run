@@ -5,7 +5,7 @@ bash <(curl -fsSL https://mesg.com/install)
 # wait core to be ready
 sleep 10
 
-# run marketplace service
+# deploy marketplace service
 cd /tmp
 git clone https://github.com/mesg-foundation/core
 cd core
@@ -13,11 +13,25 @@ git fetch origin ss/marketplace
 git checkout ss/marketplace
 cd systemservices/marketplace
 mesg-core service deploy
-mesg-core service start marketplace
 
-# run http-server service
+# deploy other services
+mesg-core service deploy https://github.com/ilgooz/service-mongo
+mesg-core service deploy https://github.com/ilgooz/service-logic
+mesg-core service deploy https://github.com/ilgooz/service-objects
 mesg-core service deploy https://github.com/ilgooz/service-http-server
-mesg-core service start http-server
+mesg-core service deploy https://github.com/ilgooz/service-graphql-fields-to-mongo-selections
+mesg-core service deploy https://github.com/ilgooz/service-graphql-introspection
+mesg-core service deploy --env SCHEMA="`cat marketplace.graphql`" https://github.com/ilgooz/service-graphql
+
+# start services
+mesg-core service start objects \
+  mongo \
+  logic \
+  marketplace \
+  http-server \
+  graphql-fields-to-mongo-selections \
+  graphql-introspection \
+  graphql
 
 # create an attachable network
 docker network create --driver overlay --attachable marketplace

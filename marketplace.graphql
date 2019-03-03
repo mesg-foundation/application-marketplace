@@ -1,0 +1,46 @@
+scalar Date
+scalar BigNumber
+scalar Object
+
+type Query {
+  service(sid: String!): Service
+  services(search: String, limit: Int, offset: Int): [Service]
+  recentlyUpdatedServices: [Service]
+}
+
+type Service {
+  owner: String
+  sid: String
+  sidHash: String
+  versions: [Version]
+  offers: [Offer]
+  purchases: [Purchase]
+  createTime: Date
+}
+
+type Version {
+  hash: String
+  manifestSource: String
+  manifestProtocol: String
+  manifest: Manifest
+  createTime: Date
+}
+
+interface Manifest {
+  version: Int
+  service: Object
+}
+
+type Offer {
+  index: BigNumber
+  price: Float
+  duration: BigNumber
+  active: Boolean
+  createTime: Date
+}
+
+type Purchase {
+  purchaser: String
+  expire: Date
+  createTime: Date
+}
