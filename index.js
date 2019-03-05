@@ -72,28 +72,59 @@ listenEvent('graphql', 'query')
   .on('error', (err) => {
     error(err)
     process.exit(1)
-  })
+  });
+
+
+// add & update(the versions, offers, purchases of) services by watching marketplace events.
+[
+  'serviceCreated',
+  'serviceOfferCreated',
+  'serviceOfferDisabled',
+  'serviceOwnershipTransferred',
+  'servicePurchased',
+  'serviceVersionCreated'
+].forEach((eventKey) => {
+  listenEvent('marketplace', eventKey)
+    .on('data', async ({ eventData }) => {
+      const { sid } = parse(eventData)
+      const service = revealData(executeTask('marketplace', 'getService', { sid }))
+      await saveServices([service])
+      debug(`${eventKey} event received and ${sid} service updated`)
+    })
+    .on('error', (err) => {
+      error(`err while listening event ${eventKey}:`, err)
+      process.exit(1)
+    })
+})
 
 // sync entire services from marketplace service to database.
+// TODO(ilgooz): run this task after starting to listen for marketplace events.
+// otherwise it's possible to miss some updates.
 executeTask('marketplace', 'listServices')
-  .then(async ({ services }) => {
-    const source = services, flatten = true
-    const [ _services, _versions, _offers, _purchases ] = await Promise.all([
-      revealData(executeTask('objects', 'select', { source, fields: ['sid', 'sidHash', 'createTime', 'owner'] })),
-      revealData(executeTask('objects', 'select', { source, flatten, fields: ['sid', 'versions.*'] })),
-      revealData(executeTask('objects', 'select', { source, flatten, fields: ['sid', 'offers.*'] })),
-      revealData(executeTask('objects', 'select', { source, flatten, fields: ['sid', 'purchases.*'] }))
-    ])
-    return Promise.all([
-      executeTask('mongo', 'write', { collection: 'services', data: _services, uniqueFields: ['sid'] }),
-      executeTask('mongo', 'write', { collection: 'versions', data: _versions, uniqueFields: ['hash'] }),
-      executeTask('mongo', 'write', { collection: 'offers', data: _offers, uniqueFields: ['index'] }),
-      executeTask('mongo', 'write', { collection: 'purchases', data: _purchases, uniqueFields: ['purchaser'] })
-    ])
-  })
-  .then(() => debug('service list synced') )
+  .then(({ services }) => saveServices(services))
+  .then(({ count }) => debug(`services synced, total count is ${count}`) )
   .catch((err) => error(err))
 
+// save(upsert) given services to database.
+async function saveServices(services){
+  const source = services, flatten = true
+  const [ _services, _versions, _offers, _purchases ] = await Promise.all([
+    revealData(executeTask('objects', 'select', { source, fields: ['sid', 'sidHash', 'createTime', 'owner'] })),
+    revealData(executeTask('objects', 'select', { source, flatten, fields: ['sid', 'versions.*'] })),
+    revealData(executeTask('objects', 'select', { source, flatten, fields: ['sid', 'offers.*'] })),
+    revealData(executeTask('objects', 'select', { source, flatten, fields: ['sid', 'purchases.*'] }))
+  ])
+  return Promise.all([
+    executeTask('mongo', 'write', { collection: 'services', data: _services, uniqueFields: ['sid'] }),
+    executeTask('mongo', 'write', { collection: 'versions', data: _versions, uniqueFields: ['hash'] }),
+    executeTask('mongo', 'write', { collection: 'offers', data: _offers, uniqueFields: ['index'] }),
+    executeTask('mongo', 'write', { collection: 'purchases', data: _purchases, uniqueFields: ['purchaser'] })
+  ]).then(() => {
+    return { count: _services.length }
+  })
+}
+
+// revealData resolves promise with content of 'data' field of successful promises.
 function revealData(promise) {
   return promise.then(({ data }) => data)
 }
