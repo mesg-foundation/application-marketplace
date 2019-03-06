@@ -26,9 +26,20 @@ type Version {
   createTime: Date
 }
 
-interface Manifest {
+type Manifest {
+  definition: Object
+  readme: String
+  service: ManifestService
   version: Int
-  service: Object
+}
+
+type ManifestService {
+  deployment: ManifestServiceDeployment
+}
+
+type ManifestServiceDeployment {
+  source: String
+  type: String
 }
 
 type Offer {
