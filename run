@@ -9,18 +9,18 @@ sleep 10
 cd /tmp
 git clone https://github.com/mesg-foundation/core
 cd core
-git fetch origin ss/marketplace
-git checkout ss/marketplace
+git fetch origin ss/marketplace-simplified
+git checkout ss/marketplace-simplified
 cd systemservices/marketplace
 mesg-core service deploy
 
 # deploy other services
-mesg-core service deploy https://github.com/ilgooz/service-mongo
-mesg-core service deploy https://github.com/ilgooz/service-logic
-mesg-core service deploy https://github.com/ilgooz/service-objects
-mesg-core service deploy https://github.com/ilgooz/service-http-server
-mesg-core service deploy https://github.com/ilgooz/service-graphql-fields-to-mongo-selections
-mesg-core service deploy https://github.com/ilgooz/service-graphql-introspection
+mesg-core service deploy https://github.com/ilgooz/service-mongo && \
+mesg-core service deploy https://github.com/ilgooz/service-logic && \
+mesg-core service deploy https://github.com/ilgooz/service-objects && \
+mesg-core service deploy https://github.com/ilgooz/service-http-server && \
+mesg-core service deploy https://github.com/ilgooz/service-graphql-fields-to-mongo-selections && \
+mesg-core service deploy https://github.com/ilgooz/service-graphql-introspection && \
 mesg-core service deploy --env SCHEMA="`cat marketplace.graphql`" https://github.com/ilgooz/service-graphql
 
 # start services
