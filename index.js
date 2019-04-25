@@ -3,10 +3,13 @@ const mesg = require('mesg-js').application({ endpoint })
 const debug = require('debug')('marketplace')
 const error = require('debug')('marketplace:error')
 
-// update services cache on startup.
-cacheServicesResponse()
+// cache all services and service list on startup.
+getServices().then(({ services }) => {
+  cacheServices(services)
+  services.forEach(async ({ sid }) => cacheService(sid, await getService(sid)))
+})
 
-// update services cache by watching marketplace events.
+// update caches by watching marketplace events.
 ;[
   'serviceCreated',
   'serviceOfferCreated',
@@ -16,35 +19,60 @@ cacheServicesResponse()
   'serviceVersionCreated'
 ].forEach((eventKey) => {
   mesg.listenEvent({ serviceID: 'marketplace', eventFilter: eventKey })
-    .on('data', cacheServicesResponse)
+    .on('data', async (event) => { 
+      const { sid } = JSON.parse(event.eventData)
+      cacheServices(await getServices())
+      cacheService(sid, await getService(sid))
+    })
     .on('error', (err) => {
       error(`err while listening event ${eventKey}:`, err)
       process.exit(1)
     })
 })
 
-// cacheServicesResponse caches response for /services JSON API.
-async function cacheServicesResponse() {
-  debug('caching response for services...')
-  await revealOutputData(mesg.executeTaskAndWaitResult({
+// cacheService caches response for GET /services/:sid endpoints.
+function cacheService(sid, service) {
+  return cache('/services/'+sid, service)
+}
+
+// cacheServices caches response for GET /services endpoint.
+function cacheServices(services) {
+  return cache('/services', services)
+}
+
+// cache caches api response for endpoint with given content & 200 code.
+function cache(endpoint, content) {
+  mesg.executeTaskAndWaitResult({
     serviceID: 'http-server',
     taskKey: 'cache',
     inputData: JSON.stringify({
       method: 'get',
-      path: '/services',
+      path: endpoint,
       code: 200,
       mimeType: 'application/json',
-      content: JSON.stringify(await revealOutputData(mesg.executeTaskAndWaitResult({
-        serviceID: 'marketplace',
-        taskKey: 'listServices',
-        inputData: JSON.stringify({})
-      })))
+      content: JSON.stringify(content),
     })
-  }))
-  debug('response cached for services')
+  })
+  debug(`cached response for get ${endpoint}`)
 }
 
-// serve 404 for * JSON API.
+function getService(sid) {
+  return revealOutputData(mesg.executeTaskAndWaitResult({
+    serviceID: 'marketplace',
+    taskKey: 'getService',
+    inputData: JSON.stringify({ sid })
+  }))
+}
+
+function getServices() {
+  return revealOutputData(mesg.executeTaskAndWaitResult({
+    serviceID: 'marketplace',
+    taskKey: 'listServices',
+    inputData: JSON.stringify({})
+  }))
+}
+
+// serve 404 for all(*) other requests.
 mesg.listenEvent({ serviceID: 'http-server', eventFilter: 'request' })
   .on('data', async (event) => {
     const data = JSON.parse(event.eventData)
