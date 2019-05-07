@@ -1,17 +1,20 @@
-const endpoint = process.env.coreAddr || 'localhost:50052'
+const endpoint = process.env.coreAddr || '192.168.99.101:50052'
 const mesg = require('mesg-js').application({ endpoint })
 const debug = require('debug')('marketplace')
 const error = require('debug')('marketplace:error')
 
 async function refreshAllCache() {
-  const services = await getServices()
+  const { services } = await getServices()
   const servicesToCache = []
-  for (const service in services) {
+  const promises = []
+  for (const service of services) {
     const s = await getService(service.sid)
-    cacheService(s)
+    promises.push(cacheService(s))
     servicesToCache.push(s)
   }
   await cacheServices(services)
+  await Promise.all(promises)
+  debug('cache updated')
 }
 
 // cacheService caches response for GET /services/:sid endpoints.
