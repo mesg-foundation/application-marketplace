@@ -5,16 +5,6 @@ bash <(curl -fsSL https://mesg.com/install)
 # wait core to be ready
 sleep 10
 
-# run marketplace service
-cd /tmp
-git clone https://github.com/mesg-foundation/core
-cd core
-git fetch origin ss/marketplace
-git checkout ss/marketplace
-cd systemservices/marketplace
-mesg-core service deploy
-mesg-core service start marketplace
-
 # run http-server service
 mesg-core service deploy https://github.com/ilgooz/service-http-server
 mesg-core service start http-server
