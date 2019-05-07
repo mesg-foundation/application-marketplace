@@ -12,7 +12,7 @@ async function refreshAllCache() {
     promises.push(cacheService(s))
     servicesToCache.push(s)
   }
-  await cacheServices(services)
+  await cacheServices(servicesToCache)
   await Promise.all(promises)
   debug('cache updated')
 }
