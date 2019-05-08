@@ -3,4 +3,4 @@
 mesg-core service stop marketplace
 mesg-core service start marketplace
 
-docker restart $(docker ps --filter name=^marketplace -q)
+docker restart $(docker ps --filter name=marketplace -q)
