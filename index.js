@@ -1,4 +1,4 @@
-const endpoint = process.env.coreAddr || '192.168.99.101:50052'
+const endpoint = process.env.coreAddr
 const mesg = require('mesg-js').application({ endpoint })
 const debug = require('debug')('marketplace')
 const error = require('debug')('marketplace:error')
