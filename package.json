@@ -10,6 +10,6 @@
   "license": "ISC",
   "dependencies": {
     "debug": "^4.1.1",
-    "mesg-js": "^2.0.1"
+    "mesg-js": "^2.1.0"
   }
 }
