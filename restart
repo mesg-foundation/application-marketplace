@@ -1,6 +1,6 @@
 #!/bin/bash
 
-mesg-core service stop marketplace
-mesg-core service start marketplace
+mesg-cli service:stop marketplace
+mesg-cli service:start marketplace
 
 docker stop $(docker ps --filter name=marketplace -q)

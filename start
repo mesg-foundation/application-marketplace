@@ -1,13 +1,14 @@
 #!/bin/bash -e
 
-bash <(curl -fsSL https://mesg.com/install)
+npm install -g mesg-cli
+mesg-cli daemon:start
 
-# wait core to be ready
+# wait engine to be ready
 sleep 10
 
 # run http-server service
-mesg-core service deploy https://github.com/ilgooz/service-http-server
-mesg-core service start http-server
+mesg-cli service:deploy https://github.com/antho1404/service-http-server
+mesg-cli service:start http-server
 
 # create an attachable network
 docker network create --driver overlay --attachable marketplace
@@ -33,14 +34,16 @@ docker run --detach \
 
 docker build -t marketplace .
 docker service create --name marketplace \
-  --network core \
+  --network engine \
   marketplace
 
+echo "Get the docker service ID of http-server"
+echo "Execute:"
 # following needs to be added to htt-server service:
-# docker service update --network-add marketplace ID
-# docker service update \
-#   --env-add "VIRTUAL_HOST=marketplace.app.mesg.com" \
-#   --env-add "VIRTUAL_PORT=2300" \
-#   --env-add "LETSENCRYPT_HOST=marketplace.app.mesg.com" \
-#   --env-add "LETSENCRYPT_EMAIL=info@mesg.com"  \
-#   ID
+echo "docker service update --network-add marketplace ID"
+echo "docker service update \\"
+echo "   --env-add \"VIRTUAL_HOST=marketplace.app.mesg.com\" \\"
+echo "   --env-add \"VIRTUAL_PORT=2300\" \\"
+echo "   --env-add \"LETSENCRYPT_HOST=marketplace.app.mesg.com\" \\"
+echo "   --env-add \"LETSENCRYPT_EMAIL=info@mesg.com\" \\"
+echo "   ID"

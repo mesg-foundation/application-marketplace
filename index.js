@@ -1,101 +1,85 @@
-const endpoint = process.env.coreAddr
+const endpoint = process.env.ENGINE_ENDPOINT || process.env.coreAddr
 const mesg = require('mesg-js').application({ endpoint })
 const debug = require('debug')('marketplace')
-const error = require('debug')('marketplace:error')
 
-async function refreshAllCache() {
-  const { services } = await getServices()
-  const servicesToCache = []
-  const promises = []
-  for (const service of services) {
-    const s = await getService(service.sid)
-    promises.push(cacheService(s))
-    servicesToCache.push(s)
-  }
-  await cacheServices(servicesToCache)
-  await Promise.all(promises)
-  debug('cache updated')
-}
-
-// cacheService caches response for GET /services/:sid endpoints.
-function cacheService(service) {
-  return cache('/services/' + service.sid, service)
-}
-
-// cacheServices caches response for GET /services endpoint.
-function cacheServices(services) {
-  return cache('/services', services)
+const handleError = err => {
+  console.error(err)
+  process.exit(1)
 }
 
 // cache caches api response for endpoint with given content & 200 code.
-function cache(endpoint, content) {
-  mesg.executeTaskAndWaitResult({
-    serviceID: 'http-server',
-    taskKey: 'cache',
-    inputData: JSON.stringify({
-      method: 'get',
-      path: endpoint,
-      code: 200,
-      mimeType: 'application/json',
-      content: JSON.stringify(content),
-    })
+const cache = async (endpoint, content) => mesg.executeTaskAndWaitResult({
+  serviceID: 'http-server',
+  taskKey: 'cache',
+  inputData: JSON.stringify({
+    method: 'get',
+    path: endpoint,
+    code: 200,
+    mimeType: 'application/json',
+    content: JSON.stringify(content),
   })
-  debug(`cached response for get ${endpoint}`)
-}
+})
 
-async function getService(sid) {
+const fetch = async (task, params = {}) => {
   const { outputData } = await mesg.executeTaskAndWaitResult({
     serviceID: 'marketplace',
-    taskKey: 'getService',
-    inputData: JSON.stringify({ sid })
+    taskKey: task,
+    inputData: JSON.stringify(params)
   })
   return JSON.parse(outputData)
 }
 
-async function getServices() {
-  const { outputData } = await mesg.executeTaskAndWaitResult({
-    serviceID: 'marketplace',
-    taskKey: 'listServices',
-    inputData: JSON.stringify({})
-  })
-  return JSON.parse(outputData)
+const refreshAllCache = async () => {
+  const { services } = await fetch('listServices')
+  const servicesToCache = []
+  for (const service of services) {
+    const srv = await fetch('getService', service)
+    await cache(`/services/${service.sid}`, { sid: service.sid })
+    debug(`CACHE /services/${service.sid}`)
+    servicesToCache.push(srv)
+  }
+  await cache('/services', servicesToCache)
+  debug('CACHE /services')
 }
 
-refreshAllCache()
+const main = async () => {
+  await refreshAllCache()
 
-  // update caches by watching marketplace events.
-  ;[
+  const events = [
     'serviceCreated',
     'serviceOfferCreated',
     'serviceOfferDisabled',
     'serviceOwnershipTransferred',
     'servicePurchased',
     'serviceVersionCreated'
-  ].forEach((eventKey) => {
+  ]
+  events.forEach((eventKey) => {
     mesg.listenEvent({ serviceID: 'marketplace', eventFilter: eventKey })
       .on('data', refreshAllCache)
-      .on('error', (err) => {
-        error(`err while listening event ${eventKey}:`, err)
-        process.exit(1)
-      })
+      .on('error', handleError)
   })
 
-// serve 404 for all(*) other requests.
-mesg.listenEvent({ serviceID: 'http-server', eventFilter: 'request' })
-  .on('data', async (event) => {
-    const data = JSON.parse(event.eventData)
-    const sessionID = data.sessionID
-    try {
-      await mesg.executeTaskAndWaitResult({
-        serviceID: 'http-server',
-        taskKey: 'completeSession',
-        inputData: JSON.stringify({ sessionID, code: 404 })
-      })
-    } catch (err) {
-      error('error while responding api request:', err)
-    }
-  })
-  .on('error', (err) => {
-    error('error while listening api requests:', err)
-    process.exit(1)
-  })
+  // serve 404 for all(*) other requests.
+  mesg.listenEvent({ serviceID: 'http-server', eventFilter: 'request' })
+    .on('data', async (event) => {
+      const data = JSON.parse(event.eventData)
+      const sessionID = data.sessionID
+      try {
+        await mesg.executeTaskAndWaitResult({
+          serviceID: 'http-server',
+          taskKey: 'completeSession',
+          inputData: JSON.stringify({ sessionID, code: 404 })
+        })
+      } catch (err) {
+        console.error('error while responding api request:', err)
+      }
+    })
+    .on('error', handleError)
+}
+
+try {
+  main()
+} catch (e) {
+  console.error(e)
+  process.exit(0)
+}
