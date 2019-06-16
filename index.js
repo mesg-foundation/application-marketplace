@@ -33,9 +33,9 @@ const refreshAllCache = async () => {
   const { services } = await fetch('listServices')
   const servicesToCache = []
   for (const service of services) {
-    const srv = await fetch('getService', service)
-    await cache(`/services/${service.sid}`, { sid: service.sid })
-    debug(`CACHE /services/${service.sid}`)
+    const srv = await fetch('getService', { sid: service.sid })
+    await cache(`/services/${srv.sid}`, srv)
+    debug(`CACHE /services/${srv.sid}`)
     servicesToCache.push(srv)
   }
   await cache('/services', servicesToCache)
