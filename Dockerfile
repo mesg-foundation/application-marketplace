@@ -4,5 +4,5 @@ COPY ./package* ./
 RUN npm install
 COPY . .
 ENV DEBUG marketplace
-ENV coreAddr core:50052
+ENV coreAddr engine:50052
 CMD [ "node", "index.js" ]
